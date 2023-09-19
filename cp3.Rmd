@@ -1,0 +1,510 @@
+---
+title: "capstone news"
+author: "ME"
+date: "2023-07-15"
+output: html_document
+---
+```{r}
+# install.packages("guardianapi")
+# install.packages("MediaNews")
+# install.packages("newsanchor")
+# install.packages("newscatcheR")
+# install.packages("RNewsflow")
+# install.packages("webtrackR")
+# install.packages("caret")
+```
+```{r}
+```
+
+
+```{r}
+library(guardianapi)
+library(tidyverse)
+library(entropy)
+library(rvest)
+library(stringr)
+library(tm) 
+library(wordcloud) 
+library(wordcloud2) 
+library(tidytext) 
+library(reshape2) 
+library(radarchart)
+library(knitr)
+library(readr)
+library(koRpus)
+library(koRpus.lang.en)
+library(quanteda)
+library(quanteda.textstats)
+library(raster)
+library(RWeka)
+library(rJava)
+library(tokenizers)
+library(entropy)
+library(xlsx)
+library(caret)
+```
+
+
+```{r}
+# gu_section(query = "sport")
+```
+
+```{r}
+#gu_api_key='d7325916-8e99-4f14-a798-79b4c0b544fe'
+gu_api_key()
+```
+
+```{r}
+#sports<- sports%>%filter(section_id %in% c("sport", "society","football","games"))
+```
+
+
+```{r}
+sports<- gu_content(query="sport", from_date = '2023-01-01', to_date = '2023-07-01')
+finance<- gu_content(query= "finance", from_date = '2023-01-01', to_date = '2023-07-01')
+politics<- gu_content(query= "politics", from_date = '2023-01-01', to_date = '2023-07-01')
+art<- gu_content(query= "art", from_date = '2023-01-01', to_date = '2023-07-01')
+```
+```{r}
+
+sports<- sports%>%filter(section_id %in% c("sport", "media", "global", "football", "world", "games", "culture"))
+art<- art%>%filter(section_id %in% c("artanddesign", "tv-and-radio", "travel", "culture", "fashion", "film", "media", "society", "books", "stage", "music", "lifeandstyle"))
+politics<- politics%>%filter(section_id %in% c("politics", "us-news", "uk-news", "law", "guardian-us-press-office", "business", "news", "australia-news","inequality"))
+finance<- finance%>%filter(section_id %in% c("environment", "business", "uk-news", "news", "money", "global-development", "us-news"))
+```
+
+
+```{r}
+bing <- read_csv("Bing.csv")
+nrc <- read_csv("NRC.csv")
+afinn <- read_csv("Afinn.csv")
+```
+
+```{r}
+# write.table(sports$body_text, file='sports.txt')
+# write.table(finance$body_text, file='finance.txt')
+# write.table(politics$body_text, file='politics.txt')
+# write.table(art$body_text, file='art.txt')
+```
+
+```{r}
+# sports_token<-tokenize('sports.txt', lang = 'en')
+# finance_token<-tokenize('finance.txt', lang = 'en')
+# politics_token<-tokenize('politics.txt', lang = 'en')
+# art_token<-tokenize('art.txt', lang = 'en')
+ 
+```
+```{r}
+sportsword<- sports%>%mutate(words=as.character(sports$body_text))%>%unnest_tokens(word, body_text)
+sport_sent<- sportsword %>%
+  inner_join(get_sentiments("bing")) %>%
+  count(word, sentiment, sort=TRUE) %>%
+  acast(word ~ sentiment, value.var="n", fill=0)
+sport_sent2<- sportsword %>% 
+  inner_join(nrc, "word") %>%
+  count(word, sentiment, sort=TRUE)
+sport_sent3<- sportsword["word"]%>%inner_join(afinn, "word")
+sport_dtm<- sportsword["word"]%>%unnest_tokens(word, word)
+
+financeword<- finance%>%mutate(words=as.character(finance$body_text))%>%unnest_tokens(word, body_text)
+finance_sent<- financeword %>%
+  inner_join(get_sentiments("bing")) %>%
+  count(word, sentiment, sort=TRUE) %>%
+  acast(word ~ sentiment, value.var="n", fill=0)
+finance_sent2<- financeword %>% 
+  inner_join(nrc, "word") %>%
+  count(word, sentiment, sort=TRUE)
+finance_sent3<- financeword["word"]%>%inner_join(afinn, "word")
+
+
+politicsword<- politics%>%mutate(words=as.character(politics$body_text))%>%unnest_tokens(word, body_text)
+politics_sent<- politicsword %>%
+  inner_join(get_sentiments("bing")) %>%
+  count(word, sentiment, sort=TRUE) %>%
+  acast(word ~ sentiment, value.var="n", fill=0)
+politics_sent2<- politicsword %>% 
+  inner_join(nrc, "word") %>%
+  count(word, sentiment, sort=TRUE)
+politics_sent3<- politicsword["word"]%>%inner_join(afinn, "word")
+
+
+artword<- art%>%mutate(words=as.character(art$body_text))%>%unnest_tokens(word, body_text)
+art_sent<- artword %>%
+  inner_join(get_sentiments("bing")) %>%
+  count(word, sentiment, sort=TRUE) %>%
+  acast(word ~ sentiment, value.var="n", fill=0)
+art_sent2<- artword %>% 
+  inner_join(nrc, "word") %>%
+  count(word, sentiment, sort=TRUE)
+art_sent3<- artword["word"]%>%inner_join(afinn, "word")
+
+```
+
+```{r}
+
+sport_sent2%>%ggplot(aes(x=sentiment)) + 
+  geom_bar(aes(fill=sentiment), show.legend=FALSE) +
+  labs(x="Sentiment", y="Frequency") +
+  theme_bw()+
+  ggtitle("Sports Sentiment")+
+  scale_x_discrete(limits=c("positive", "negative", "anger", "anticipation", "disgust", "fear", "joy", "sadness", "surprise", "trust"))
+
+sport_sent%>%
+  comparison.cloud(colors=c("#F8766D", "#00BFC4"), max.words=100)
+
+#readability(sports_token, index="Flesch.Kincaid")
+```
+
+```{r}
+finance_sent2%>%ggplot(aes(x=sentiment)) + 
+  geom_bar(aes(fill=sentiment), show.legend=FALSE) +
+  labs(x="Sentiment", y="Frequency") +
+  theme_bw()+
+  ggtitle("Finance Sentiment")+
+  scale_x_discrete(limits=c("positive", "negative", "anger", "anticipation", "disgust", "fear", "joy", "sadness", "surprise", "trust"))
+
+
+finance_sent%>%
+  comparison.cloud(colors=c("#F8766D", "#00BFC4"), max.words=100)
+
+#readability(finance_token, index="Flesch.Kincaid")
+```
+```{r}
+politics_sent2%>%ggplot(aes(x=sentiment)) + 
+  geom_bar(aes(fill=sentiment), show.legend=FALSE) +
+  labs(x="Sentiment", y="Frequency") +
+  theme_bw()+
+    ggtitle("Politics Sentiment")+
+  scale_x_discrete(limits=c("positive", "negative", "anger", "anticipation", "disgust", "fear", "joy", "sadness", "surprise", "trust"))
+
+politics_sent%>%
+  comparison.cloud(colors=c("#F8766D", "#00BFC4"), max.words=100)
+
+#readability(politics_token, index="Flesch.Kincaid")
+```
+
+```{r}
+art_sent2%>%ggplot(aes(x=sentiment)) + 
+  geom_bar(aes(fill=sentiment), show.legend=FALSE) +
+  labs(x="Sentiment", y="Frequency") +
+  theme_bw()+
+    ggtitle("Art Sentiment")+
+  scale_x_discrete(limits=c("positive", "negative", "anger", "anticipation", "disgust", "fear", "joy", "sadness", "surprise", "trust"))
+
+
+art_sent%>%
+  comparison.cloud(colors=c("#F8766D", "#00BFC4"), max.words=100)
+
+#readability(art_token, index="Flesch.Kincaid")
+```
+```{r}
+politicsword$unique_count<-lengths(lapply(strsplit(politicsword$body_text, split = ' '), unique))
+artword$unique_count<-lengths(lapply(strsplit(artword$body_text, split = ' '), unique))
+financeword$unique_count<-lengths(lapply(strsplit(financeword$body_text, split = ' '), unique))
+sportsword$unique_count<-lengths(lapply(strsplit(sportsword$body_text, split = ' '), unique))
+
+word_count_bind<- rbind(data.frame(category="Sports", word = sportsword$word, value=sportsword$unique_count),data.frame(category="Finance", word=financeword$word, value=financeword$unique_count),data.frame(category="Politics", word=politicsword$word, value=politics$unique_count),data.frame(category="Art", word=artword$word, value=art$unique_count))
+
+word_count_bind2<- rbind(data.frame(category="Sports", word = sportsword$word),data.frame(category="Finance", word=financeword$word),data.frame(category="Politics", word=politicsword$word),data.frame(category="Art", word=artword$word))
+
+word_count_bind3<- rbind(data.frame(category="Sports", word = frequentBigrams(sports$body_text)),data.frame(category="Finance", word=frequentBigrams(finance$body_text)),data.frame(category="Politics", word=frequentBigrams(politics$body_text)),data.frame(category="Art", word=frequentBigrams(art$body_text)))
+
+frequentBigrams(sports$body_text)
+```
+
+```{r}
+word_count_bind%>%
+  ggplot(aes(x=category, y=value, fill=category))+
+  geom_boxplot()+
+  ggtitle("Word Count by Category")
+```
+```{r}
+entropy(word_count_bind$value)
+entropy(politics$unique_count)
+entropy(sports$unique_count)
+entropy(finance$unique_count)
+entropy(art$unique_count)
+```
+```{r}
+pct_format = scales::percent_format(accuracy = .1)
+sport_sent3%>%
+  ggplot(aes(x=value))+
+  geom_bar()+
+  ggtitle("Sport")+
+  geom_text(aes(label = sprintf(
+        '%d (%s)',
+        ..count..,
+        pct_format(..count.. / sum(..count..))
+      )
+    ),
+    stat = 'count',
+    nudge_y = .2,
+    colour = 'black',
+    size = 3,
+    vjust = -0.5
+  )
+
+finance_sent3%>%
+  ggplot(aes(x=value))+
+  geom_bar()+
+  ggtitle("Finance")+
+     geom_text(aes(label = sprintf(
+        '%d (%s)',
+        ..count..,
+        pct_format(..count.. / sum(..count..))
+      )
+    ),
+    stat = 'count',
+    nudge_y = .2,
+    colour = 'black',
+    size = 3,
+    vjust = -0.5)
+  
+
+politics_sent3%>%
+  ggplot(aes(x=value))+
+  geom_bar()+
+  ggtitle("Politics")+
+     geom_text(aes(label = sprintf(
+        '%d (%s)',
+        ..count..,
+        pct_format(..count.. / sum(..count..))
+      )
+    ),
+    stat = 'count',
+    nudge_y = .2,
+    colour = 'black',
+    size = 3,
+    vjust = -0.5)
+  
+
+art_sent3%>%
+  ggplot(aes(x=value))+
+  geom_bar()+
+  ggtitle("Art")+
+     geom_text(aes(label = sprintf(
+        '%d (%s)',
+        ..count..,
+        pct_format(..count.. / sum(..count..))
+      )
+    ),
+    stat = 'count',
+    nudge_y = .2,
+    colour = 'black',
+    size = 3,
+    vjust = -0.5)
+  
+
+```
+```{r}
+d<-sports$body_text
+d <- VCorpus(VectorSource(d))
+d <- tm_map(d, content_transformer(tolower))
+d <- tm_map(d, removePunctuation)
+d <- tm_map(d, removeWords, stopwords())
+d<- DocumentTermMatrix(d)
+d
+findFreqTerms(d,5000)
+conv_counts <- function(x) {
+  x <- ifelse(x > 0, 1, 0)
+  x <- factor(x, levels = c(0, 1), labels = c("No", "Yes"))
+}
+
+d2 <- apply(sport_sent3, MARGIN = 2, conv_counts)
+train_set <- createDataPartition(y=sport_sent3, p=.7,list=FALSE)
+train_dtm <- d2[train_set,]
+test_dtm <-d2[-train_set,]
+train_classes <- d[train_set]
+test_classes <- d[-train_set]
+sp_model <- train( data.frame(train_dtm), d, method="nb")
+sp_model
+```
+```{r}
+sports%>%group_by(section_name)%>%
+  ggplot(aes(x=section_name, y=unique_count))+
+           geom_point()
+
+topn<- sport_sent3%>%group_by(word)
+topn<-top_n(topn["word"], n=5)
+topn%>%group_by(value)%>%
+  ggplot(aes(x=word, y=value))+
+           geom_point()
+```
+```{r}
+# Load the required libraries
+# install.packages("topicmodels")
+# library(tm)
+# library(topicmodels)
+
+# Sample text data
+sport_texts <- c(sport_sent2["word"])
+
+# Create a corpus from the text data
+sportcorpus <- Corpus(VectorSource(sport_texts))
+
+# Preprocess the text data (remove punctuation, lowercase, remove stopwords)
+sportcorpus <- tm_map(sportcorpus, content_transformer(tolower))
+sportcorpus <- tm_map(sportcorpus, removePunctuation)
+sportcorpus <- tm_map(sportcorpus, removeWords, stopwords("en"))
+
+# Create a document-term matrix (DTM) using a simple term frequency representation
+sportdtm <- DocumentTermMatrix(sportcorpus)
+
+# Fit the LDA model
+sportnum_topics <- 10  # Number of topics to discover
+sportlda_model <- LDA(dtm, k = num_topics)
+# Get the terms (words) associated with each topic
+sportterms_per_topic <- terms(sportlda_model, 5)  # Adjust '5' to get more or fewer terms per topic
+
+# Print the topics
+for (i in 1:sportnum_topics) {
+  cat("Topic", i, ":", paste(sportterms_per_topic[[i]], collapse = ", "), "\n")
+}
+
+```
+```{r}
+politics_texts <- c(politics_sent2["word"])
+
+# Create a corpus from the text data
+politicscorpus <- Corpus(VectorSource(politics_texts))
+
+# Preprocess the text data (remove punctuation, lowercase, remove stopwords)
+politicscorpus <- tm_map(politicscorpus, content_transformer(tolower))
+politicscorpus <- tm_map(politicscorpus, removePunctuation)
+politicscorpus <- tm_map(politicscorpus, removeWords, stopwords("en"))
+
+# Create a document-term matrix (DTM) using a simple term frequency representation
+politicsdtm <- DocumentTermMatrix(politicscorpus)
+
+# Fit the LDA model
+politicsnum_topics <- 10  # Number of topics to discover
+politicslda_model <- LDA(dtm, k = num_topics)
+# Get the terms (words) associated with each topic
+politicsterms_per_topic <- terms(politicslda_model, 5)  # Adjust '5' to get more or fewer terms per topic
+
+# Print the topics
+for (i in 1:politicsnum_topics) {
+  cat("Topic", i, ":", paste(politicsterms_per_topic[[i]], collapse = ", "), "\n")
+}
+```
+```{r}
+finance_texts <- c(finance_sent2["word"])
+
+# Create a corpus from the text data
+financecorpus <- Corpus(VectorSource(finance_texts))
+
+# Preprocess the text data (remove punctuation, lowercase, remove stopwords)
+financecorpus <- tm_map(financecorpus, content_transformer(tolower))
+financecorpus <- tm_map(financecorpus, removePunctuation)
+financecorpus <- tm_map(financecorpus, removeWords, stopwords("en"))
+
+# Create a document-term matrix (DTM) using a simple term frequency representation
+financedtm <- DocumentTermMatrix(financecorpus)
+
+# Fit the LDA model
+financenum_topics <- 10  # Number of topics to discover
+financelda_model <- LDA(dtm, k = num_topics)
+# Get the terms (words) associated with each topic
+financeterms_per_topic <- terms(financelda_model, 5)  # Adjust '5' to get more or fewer terms per topic
+
+# Print the topics
+for (i in 1:financenum_topics) {
+  cat("Topic", i, ":", paste(financeterms_per_topic[[i]], collapse = ", "), "\n")
+}
+```
+
+```{r}
+art_texts <- c(art_sent2["word"])
+
+# Create a corpus from the text data
+artcorpus <- Corpus(VectorSource(art_texts))
+
+# Preprocess the text data (remove punctuation, lowercase, remove stopwords)
+artcorpus <- tm_map(artcorpus, content_transformer(tolower))
+artcorpus <- tm_map(artcorpus, removePunctuation)
+artcorpus <- tm_map(artcorpus, removeWords, stopwords("en"))
+
+# Create a document-term matrix (DTM) using a simple term frequency representation
+artdtm <- DocumentTermMatrix(artcorpus)
+
+# Fit the LDA model
+artnum_topics <- 10  # Number of topics to discover
+artlda_model <- LDA(dtm, k = num_topics)
+# Get the terms (words) associated with each topic
+artterms_per_topic <- terms(artlda_model, 5)  # Adjust '5' to get more or fewer terms per topic
+
+# Print the topics
+for (i in 1:artnum_topics) {
+  cat("Topic", i, ":", paste(artterms_per_topic[[i]], collapse = ", "), "\n")
+}
+```
+```{r}
+count_bind<- word_count_bind2%>%count(category, word, sort=TRUE)%>%anti_join(stop_words)
+complete<- count_bind%>%cast_dtm(category, word, n)
+complete
+```
+
+```{r}
+#library(topicmodels)
+lda<- LDA(complete, k=4, control=list(seed=1234))
+topics<- tidy(lda, matrix="beta")
+topics
+```
+
+```{r}
+top_terms <- topics %>%
+  group_by(topic) %>%
+  slice_max(beta, n = 5) %>% 
+  ungroup() %>%
+  arrange(topic, -beta)
+top_terms
+```
+```{r}
+top_terms %>%
+  mutate(term = reorder_within(term, beta, topic)) %>%
+  ggplot(aes(beta, term, fill = factor(topic))) +
+  geom_col(show.legend = FALSE) +
+  facet_wrap(~ topic, scales = "free") +
+  scale_y_reordered()
+```
+
+```{r}
+topics_gamma<-tidy(lda, matrix="gamma")
+topics_gamma
+topics_gamma %>%
+  mutate(document = reorder(document, gamma * topic)) %>%
+  ggplot(aes(factor(topic), gamma)) +
+  geom_boxplot() +
+  facet_wrap(~ document) +
+  labs(x = "Topic", y = expression(gamma))
+```
+```{r}
+count_bindbi<- word_count_bind3%>%count(category, word.word, sort=TRUE)
+completebi<- count_bindbi%>%cast_dtm(category, word.word, n)
+ldabi<- LDA(completebi, k=4, control=list(seed=1234))
+topicsbi<- tidy(ldabi, matrix="beta")
+topicsbi
+top_termsbi <- topicsbi %>%
+  group_by(topic) %>%
+  slice_max(beta, n = 5) %>% 
+  ungroup() %>%
+  arrange(topic, -beta)
+top_termsbi
+top_termsbi %>%
+  mutate(term = reorder_within(term, beta, topic)) %>%
+  ggplot(aes(beta, term, fill = factor(topic))) +
+  geom_col(show.legend = FALSE) +
+  facet_wrap(~ topic, scales = "free") +
+  scale_y_reordered()
+```
+```{r}
+topics_gammabi<-tidy(ldabi, matrix="gamma")
+topics_gammabi
+topics_gammabi %>%
+  mutate(document = reorder(document, gamma * topic)) %>%
+  ggplot(aes(factor(topic), gamma)) +
+  geom_boxplot() +
+  facet_wrap(~ document) +
+  labs(x = "Topic", y = expression(gamma))
+```
+

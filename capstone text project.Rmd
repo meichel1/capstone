@@ -1,0 +1,204 @@
+---
+title: "capstone text project"
+author: "ME"
+date: "2023-06-20"
+output: html_document
+---
+```{r}
+# install.packages("tidyverse")
+# install.packages("tm") 
+# install.packages("wordcloud") 
+# install.packages("wordcloud2") 
+# install.packages("tidytext") 
+# install.packages("reshape2") 
+# install.packages("radarchart")
+# install.packages("koRpus")
+# install.packages("koRpus.lang.en")
+# install.packages("quanteda")
+# install.packages("quanteda.textstats")
+# install.packages("raster")
+# install.packages("RWeka")
+# install.packages("rJava")
+# install.packages("entropy")
+# install.packages("xlsx")
+```
+
+
+```{r setup, include=FALSE}
+#libraries
+library(tidyverse)
+library(rvest)
+library(stringr)
+library(tm) 
+library(wordcloud) 
+library(wordcloud2) 
+library(tidytext) 
+library(reshape2) 
+library(radarchart)
+library(knitr)
+library(readr)
+library(koRpus)
+library(koRpus.lang.en)
+library(quanteda)
+library(quanteda.textstats)
+library(raster)
+library(RWeka)
+library(rJava)
+library(tokenizers)
+library(entropy)
+library(xlsx)
+```
+```{r}
+#lexical reference
+bing <- read_csv("Bing.csv")
+nrc <- read_csv("NRC.csv")
+afinn <- read_csv("Afinn.csv")
+```
+```{r}
+#functions
+cleanCorpus <- function(corpus){
+
+  corpus.tmp <- tm_map(corpus, removePunctuation)
+  corpus.tmp <- tm_map(corpus.tmp, stripWhitespace)
+  corpus.tmp <- tm_map(corpus.tmp, content_transformer(tolower))
+  v_stopwords <- c(stopwords("english"), c("thats","weve","hes","theres","ive","im",
+                                           "will","can","cant","dont","youve","us",
+                                           "youre","youll","theyre","whats","didnt"))
+  corpus.tmp <- tm_map(corpus.tmp, removeWords, v_stopwords)
+  corpus.tmp <- tm_map(corpus.tmp, removeNumbers)
+  return(corpus.tmp)
+
+}
+frequentTerms <- function(text){
+
+  s.cor <- Corpus(VectorSource(text))
+  s.cor.cl <- cleanCorpus(s.cor)
+  s.tdm <- TermDocumentMatrix(s.cor.cl)
+  s.tdm <- removeSparseTerms(s.tdm, 0.999)
+  m <- as.matrix(s.tdm)
+  word_freqs <- sort(rowSums(m), decreasing=TRUE)
+  dm <- data.frame(word=names(word_freqs), freq=word_freqs)
+  return(dm)
+
+}
+tokenizer  <- function(x){
+
+  NGramTokenizer(x, Weka_control(min=2, max=2))
+
+}
+frequentBigrams <- function(text){
+
+  s.cor <- VCorpus(VectorSource(text))
+  s.cor.cl <- cleanCorpus(s.cor)
+  s.tdm <- TermDocumentMatrix(s.cor.cl, control=list(tokenize=tokenizer))
+  s.tdm <- removeSparseTerms(s.tdm, 0.999)
+  m <- as.matrix(s.tdm)
+  word_freqs <- sort(rowSums(m), decreasing=TRUE)
+  dm <- data.frame(word=names(word_freqs), freq=word_freqs)
+  return(dm)
+
+}
+```
+
+```{r}
+tokenizer(wwc$description)
+frequentBigrams(wwc$description)
+frequentTerms(wwc$description)
+write.xlsx(wwc$content, file="content.xlsx")
+tokwc2<- tokenize_words(wwc$description)
+
+```
+```{r}
+#wordcloud2(frequentTerms(lcWord$word))
+```
+```{r}
+
+wcword<- wwc%>%mutate(words=as.character(wwc$description))%>%unnest_tokens(word, description)
+wwc<- wwc$results_df
+
+wwc$content
+
+```
+```{r}
+wcsent<- wcword %>%
+  inner_join(get_sentiments("bing")) %>%
+  count(word, sentiment, sort=TRUE) %>%
+  acast(word ~ sentiment, value.var="n", fill=0)
+
+wcsent%>%
+  comparison.cloud(colors=c("#F8766D", "#00BFC4"), max.words=100)
+
+```
+```{r}
+
+```
+
+
+```{r}
+wc_sent<- wcword %>% 
+  inner_join(nrc, "word") %>%
+  count(word, sentiment, sort=TRUE) 
+
+freqterwc<- frequentTerms(wwc$description) 
+
+wc_sent%>%ggplot(aes(x=sentiment)) + 
+  geom_bar(aes(fill=sentiment), show.legend=FALSE) +
+  labs(x="Sentiment", y="Frequency") +
+  theme_bw()
+
+ggplot(aes(x=freqterwc$word, y=find()))+
+  geom_boxplot()
+
+
+wc_Sent2<- frequentTerms(wwc$description) %>% 
+  inner_join(nrc, "word") %>%
+  count(word, sentiment, sort=TRUE) 
+
+
+wc_Sent2%>%ggplot(aes(x=sentiment)) + 
+  geom_bar(aes(fill=sentiment), show.legend=FALSE) +
+  labs(x="Sentiment", y="Frequency") +
+  theme_bw()
+
+
+
+```
+```{r}
+treetag('wcw.txt', treetagger="manual",
+  lang="en",
+  TT.options=list(
+    path="c:/TreeTagger",
+    preset="en"
+  ), debug=TRUE)
+
+wctokde<-tokenize('wcwdes.txt', lang = 'en')
+describe(wctok)
+```
+```{r}
+write.table(wcword$word, file='wcw.txt')
+write.table(wwc$description, file='wcwdes.txt')
+read.table('wcwdes.txt')
+```
+```{r}
+wctoktrunc<- wctok%>%top_n(30)
+
+lex.div(
+  wctok,
+  measure=c("TTR", "MSTTR", "MATTR","HD-D", "MTLD", "MTLD-MA"),
+  char=c("TTR", "MATTR","HD-D", "MTLD", "MTLD-MA")
+)
+
+readability(wctokde)
+```
+
+```{r}
+# library(httr)
+url <- "https://newsnow.p.rapidapi.com/top"
+
+queryString <- list(page = "1")
+
+response <- VERB("GET", url, query = queryString, add_headers('X-RapidAPI-Key' = '50f9c33b08mshb38785535af716ap1391f9jsna0cf0461b364', 'X-RapidAPI-Host' = 'newsnow.p.rapidapi.com'), content_type("application/octet-stream"))
+
+content(response, "text")
+```
+
